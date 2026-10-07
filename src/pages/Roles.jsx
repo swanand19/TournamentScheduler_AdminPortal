@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createRole, deleteRole, getRolePermissions, getRoles, saveRolePermissions, updateRole } from "../api/adminApi";
 import { useAction, useLoad } from "../hooks";
-import { ErrorBanner } from "../ui";
+import { Empty, ErrorBanner, Loading } from "../ui";
 
 // Roles, and the role editor: every service as a tick box, grouped by area, saved as a whole set.
 // Boxes the server locks (sign-in for everyone, what Admin always keeps, portal services for
@@ -29,19 +29,25 @@ export default function Roles({ can }) {
 
   return (
     <div className="layout-2">
-      <div className="card">
-        <h2>ROLES</h2>
-        <p className="lead">Each person has one. Pick a role to see what it may do.</p>
+      <aside className="squad">
+        <h2>Squad sheet</h2>
+        <p className="lead">Each person has one role. Pick one to see what it may do.</p>
         <ErrorBanner message={roles.error} />
+        {roles.loading && !roles.data && <Loading rows={3} />}
         <ul className="role-list">
-          {roles.data?.map((r) => (
+          {roles.data?.map((r, i) => (
             <li key={r.roleId}>
               <button aria-current={r.roleId === role?.roleId} onClick={() => setSelected(r.roleId)}>
-                {r.name}
-                {r.portalAccess && <span className="badge amber" style={{ marginLeft: 6 }}>Portal</span>}
-                <span className="sub">
-                  {r.users} {r.users === 1 ? "person" : "people"} · {r.ticks} ticked
+                <span className="shirt" aria-hidden="true">
+                  {String(i + 1).padStart(2, "0")}
                 </span>
+                <span>
+                  <span className="name">{r.name}</span>
+                  <span className="sub">
+                    {r.users} {r.users === 1 ? "person" : "people"} · {r.ticks} ticked
+                  </span>
+                </span>
+                {r.portalAccess && <span className="badge amber">Portal</span>}
               </button>
             </li>
           ))}
@@ -49,7 +55,7 @@ export default function Roles({ can }) {
 
         {can("ADMIN_ROLE_CREATE") &&
           (adding ? (
-            <form onSubmit={add} style={{ marginTop: 12, display: "grid", gap: 8 }}>
+            <form onSubmit={add} className="new-role on-pitch">
               <ErrorBanner message={action.error} />
               <input className="input" placeholder="Name, e.g. Support" aria-label="New role's name" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} autoFocus />
               <input className="input" placeholder="What it's for (optional)" aria-label="New role's description" value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} />
@@ -57,20 +63,20 @@ export default function Roles({ can }) {
                 <button className="btn primary small" disabled={!draft.name.trim() || !!action.busy}>
                   {action.busy ? "Adding…" : "Add role"}
                 </button>
-                <button type="button" className="btn ghost small" onClick={() => setAdding(false)}>
+                <button type="button" className="btn ghost-dark small" onClick={() => setAdding(false)}>
                   Cancel
                 </button>
               </div>
-              <p className="sub" style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>
-                A new role starts with nothing ticked.
-              </p>
+              <p className="hint">A new role starts with nothing ticked.</p>
             </form>
           ) : (
-            <button className="btn ghost small" style={{ marginTop: 12 }} onClick={() => setAdding(true)}>
-              + New role
-            </button>
+            <div className="new-role">
+              <button className="btn ghost-dark small" onClick={() => setAdding(true)}>
+                + New role
+              </button>
+            </div>
           ))}
-      </div>
+      </aside>
 
       {role && (
         <RoleEditor
@@ -153,12 +159,22 @@ function RoleEditor({ role, can, onChanged, onDeleted }) {
     });
   };
 
+  const tickedCount = (ticks.data ?? []).filter((p) => (p.locked ? p.ticked : current.has(p.permissionId))).length;
   const detailsChanged = details.name.trim() !== role.name || details.description.trim() !== (role.description ?? "");
 
   return (
     <div className="card">
-      <h2>{role.name.toUpperCase()}</h2>
-      {role.isBuiltIn && <p className="lead">Built in — its name is fixed, and it can't be deleted. Its description and ticks can change.</p>}
+      <div className="editor-head">
+        <span className="crest" aria-hidden="true">
+          {role.name.slice(0, 1).toUpperCase()}
+        </span>
+        <div>
+          <h2>{role.name}</h2>
+          <p className="lead">
+            {role.isBuiltIn ? "Built in — its name is fixed, and it can't be deleted. Its description and ticks can change." : role.description || "No description yet."}
+          </p>
+        </div>
+      </div>
 
       {can("ADMIN_ROLE_UPDATE") && (
         <form onSubmit={saveDetails} className="toolbar">
@@ -168,7 +184,7 @@ function RoleEditor({ role, can, onChanged, onDeleted }) {
             Save details
           </button>
           {can("ADMIN_ROLE_DELETE") && !role.isBuiltIn && (
-            <button type="button" className="btn ghost small" onClick={remove} disabled={!!action.busy}>
+            <button type="button" className="btn danger small" onClick={remove} disabled={!!action.busy}>
               Delete role
             </button>
           )}
@@ -178,53 +194,73 @@ function RoleEditor({ role, can, onChanged, onDeleted }) {
       <ErrorBanner message={ticks.error || action.error} />
       {notice && !action.error && <div className="notice">{notice}</div>}
 
+      {ticks.data && (
+        <div className="meter">
+          <span>
+            {tickedCount}/{ticks.data.length} ticked
+          </span>
+          <span className="bar">
+            <i style={{ width: `${ticks.data.length ? (tickedCount / ticks.data.length) * 100 : 0}%` }} />
+          </span>
+        </div>
+      )}
+
       <input className="input grow" type="search" placeholder="Filter services" aria-label="Filter services" value={filter} onChange={(e) => setFilter(e.target.value)} />
 
-      {ticks.loading && !ticks.data && <p className="empty">Loading…</p>}
+      {ticks.loading && !ticks.data && <Loading />}
+      {ticks.data && groups.length === 0 && <Empty>Nothing matches.</Empty>}
       {groups.map(([controller, items]) => {
         const free = items.filter((p) => !p.locked);
         const allOn = free.length > 0 && free.every((p) => current.has(p.permissionId));
+        const on = items.filter((p) => (p.locked ? p.ticked : current.has(p.permissionId))).length;
         return (
           <section className="group" key={controller}>
             <h3>
               {controller}
+              <span className="tally">
+                {on}/{items.length}
+              </span>
               {editable && free.length > 1 && (
-                <button className="linklike" style={{ marginLeft: 10, padding: 0, fontSize: 12 }} onClick={() => toggleGroup(items, !allOn)}>
+                <button className="linklike" onClick={() => toggleGroup(items, !allOn)}>
                   {allOn ? "untick all" : "tick all"}
                 </button>
               )}
             </h3>
-            {items.map((p) => {
-              const ticked = p.locked ? p.ticked : current.has(p.permissionId);
-              return (
-                <label className="tick" key={p.permissionId}>
-                  <input type="checkbox" checked={ticked} disabled={!!p.locked || !editable} onChange={() => toggle(p.permissionId)} />
-                  <span>
-                    <code>{p.serviceRequestId}</code>
-                    {p.isAdminOnly && <span className="badge amber" style={{ marginLeft: 6 }}>Portal</span>}
-                    {p.isDisabled && <span className="badge red" style={{ marginLeft: 6 }}>Switched off</span>}
-                    {p.isObsolete && <span className="badge">Gone from the code</span>}
-                    <span className="sub">
-                      {p.httpMethod} {p.url}
-                      {p.locked && ` · ${p.locked}`}
+            <div className="ticks">
+              {items.map((p) => {
+                const ticked = p.locked ? p.ticked : current.has(p.permissionId);
+                return (
+                  <label className={`tick${p.locked ? " locked" : ""}`} key={p.permissionId}>
+                    <input type="checkbox" checked={ticked} disabled={!!p.locked || !editable} onChange={() => toggle(p.permissionId)} />
+                    <span>
+                      <code>{p.serviceRequestId}</code>
+                      {p.isAdminOnly && <span className="badge amber" style={{ marginLeft: 6 }}>Portal</span>}
+                      {p.isDisabled && <span className="badge red" style={{ marginLeft: 6 }}>Switched off</span>}
+                      {p.isObsolete && <span className="badge" style={{ marginLeft: 6 }}>Gone from the code</span>}
+                      <span className="sub">
+                        {p.httpMethod} {p.url}
+                      </span>
+                      {p.locked && <span className="sub lock">🔒 {p.locked}</span>}
                     </span>
-                  </span>
-                </label>
-              );
-            })}
+                  </label>
+                );
+              })}
+            </div>
           </section>
         );
       })}
 
       {editable && (
         <div className="sticky-save">
+          <span className={`state${changed ? " dirty" : ""}`}>
+            {changed ? "Unsaved changes" : "All saved"}
+          </span>
           <button className="btn primary" disabled={!changed || !!action.busy} onClick={save}>
             {action.busy === "save" ? "Saving…" : "Save ticks"}
           </button>
           <button className="btn ghost" disabled={!changed || !!action.busy} onClick={() => setPicked(null)}>
             Undo changes
           </button>
-          {changed && <span style={{ color: "var(--muted)" }}>Unsaved changes</span>}
         </div>
       )}
     </div>
