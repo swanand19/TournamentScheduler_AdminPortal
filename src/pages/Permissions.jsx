@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { getPermissions, getRoles, setPermissionDisabled, syncPermissions } from "../api/adminApi";
 import { useAction, useLoad } from "../hooks";
-import { ErrorBanner } from "../ui";
+import { Empty, ErrorBanner, Loading } from "../ui";
 
 // Every service the API has, as the permission sync found it, with who is ticked for it. Switching
 // one off refuses it for everyone (sign-in and the protected ones can't be). "Update permissions"
@@ -51,73 +51,77 @@ export default function Permissions({ can }) {
   const off = permissions.data?.filter((p) => p.isDisabled).length ?? 0;
   const gone = permissions.data?.filter((p) => p.isObsolete).length ?? 0;
 
+  const tiles = [
+    { key: "all", label: "Services", value: total },
+    { key: "off", label: "Switched off", value: off, red: true },
+    { key: "gone", label: "Gone from the code", value: gone },
+  ];
+
   return (
     <div className="card">
+      <div className="tallies" role="group" aria-label="Show">
+        {tiles.map((t) => (
+          <button key={t.key} className={`tally-tile${t.red && t.value > 0 ? " red" : ""}`} aria-pressed={show === t.key} onClick={() => setShow(t.key)}>
+            <span>{t.label}</span>
+            <b>{permissions.data ? t.value : "–"}</b>
+          </button>
+        ))}
+      </div>
+
       <div className="toolbar">
         <input className="input grow" type="search" placeholder="Filter services" aria-label="Filter services" value={filter} onChange={(e) => setFilter(e.target.value)} />
-        <select className="select" aria-label="Show" value={show} onChange={(e) => setShow(e.target.value)}>
-          <option value="all">All {total}</option>
-          <option value="off">Switched off ({off})</option>
-          <option value="gone">Gone from the code ({gone})</option>
-        </select>
         {can("ADMIN_PERMISSION_SYNC") && (
           <button className="btn dark" onClick={sync} disabled={!!action.busy}>
-            {action.busy === "sync" ? "Updating…" : "Update permissions"}
+            {action.busy === "sync" ? "Updating…" : "↻ Update permissions"}
           </button>
         )}
       </div>
 
       <ErrorBanner message={permissions.error || action.error} />
       {notice && !action.error && <div className="notice">{notice}</div>}
-      {permissions.loading && !permissions.data && <p className="empty">Loading…</p>}
-      {permissions.data && groups.length === 0 && <p className="empty">Nothing matches.</p>}
+      {permissions.loading && !permissions.data && <Loading />}
+      {permissions.data && groups.length === 0 && <Empty>Nothing matches.</Empty>}
 
       {groups.map(([controller, items]) => (
         <section className="group" key={controller}>
-          <h3>{controller}</h3>
-          <div className="table-wrap">
-            <table className="fixed">
-              <tbody>
-                {items.map((p) => (
-                  <tr key={p.permissionId}>
-                    <td style={{ width: "40%" }}>
-                      <code style={{ fontWeight: 600 }}>{p.serviceRequestId}</code>
-                      <span className="sub">
-                        {p.httpMethod} {p.url}
-                      </span>
-                    </td>
-                    <td>
-                      {p.isAnonymous && <span className="badge green">Signed out too</span>}
-                      {p.isAdminOnly && <span className="badge amber">Portal</span>}
-                      {p.isProtected && <span className="badge">Can't be switched off</span>}
-                      {p.isObsolete && <span className="badge">Gone from the code</span>}
-                      {p.isDisabled && <span className="badge red">Switched off</span>}
-                    </td>
-                    <td>
-                      {p.isAnonymous ? (
-                        <span className="sub">Everyone</span>
-                      ) : p.roleIds.length === 0 ? (
-                        <span className="sub">No role</span>
-                      ) : (
-                        <span className="sub">{p.roleIds.map(roleName).join(", ")}</span>
-                      )}
-                    </td>
-                    <td className="actions">
-                      {can("ADMIN_PERMISSION_SET_DISABLED") && p.canDisable && (
-                        <button
-                          className={`btn small ${p.isDisabled ? "primary" : "ghost"}`}
-                          disabled={!!action.busy}
-                          onClick={() => flip(p)}
-                        >
-                          {p.isDisabled ? "Switch on" : "Switch off"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <h3>
+            {controller}
+            <span className="tally">{items.length}</span>
+          </h3>
+          {items.map((p) => (
+            <div className={`perm-row${p.isDisabled ? " off" : ""}`} key={p.permissionId}>
+              <div>
+                <code>{p.serviceRequestId}</code>
+                <span className="sub">
+                  <span className={`method ${p.httpMethod?.toLowerCase()}`}>{p.httpMethod}</span>
+                  {p.url}
+                </span>
+              </div>
+              <div>
+                {p.isAnonymous && <span className="badge green">Signed out too</span>}
+                {p.isAdminOnly && <span className="badge amber">Portal</span>}
+                {p.isProtected && <span className="badge">🔒 Can't be switched off</span>}
+                {p.isObsolete && <span className="badge">Gone from the code</span>}
+                {p.isDisabled && <span className="badge red">Switched off</span>}
+              </div>
+              <div className="who-can">{p.isAnonymous ? "Everyone" : p.roleIds.length === 0 ? "No role" : p.roleIds.map(roleName).join(", ")}</div>
+              <div>
+                {can("ADMIN_PERMISSION_SET_DISABLED") && p.canDisable && (
+                  <button
+                    className="switch"
+                    role="switch"
+                    aria-checked={!p.isDisabled}
+                    aria-label={`${p.serviceRequestId} is ${p.isDisabled ? "off" : "on"}`}
+                    disabled={!!action.busy}
+                    onClick={() => flip(p)}
+                  >
+                    <span className="track" aria-hidden="true" />
+                    <span className="label">{p.isDisabled ? "Off" : "On"}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </section>
       ))}
     </div>

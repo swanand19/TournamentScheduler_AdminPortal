@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { sendCode, signIn } from "../api/adminApi";
 import { useAction } from "../hooks";
-import { ErrorBanner } from "../ui";
+import { ErrorBanner, Scorebug } from "../ui";
 import { getSignedOutReason, setSession } from "./session";
 
 // Signing in to the portal: email → the emailed code → the password (or, the first time, a new
@@ -61,37 +61,82 @@ export default function SignIn() {
     action.setError("");
   };
 
+  const stage = step === "email" ? 0 : step === "code" ? 1 : 2;
+  const STEPS = ["Email", "Code", "Password"];
+  const TITLES = { email: "Show your pass", code: "Check your email", password: "One more thing", newPassword: "Pick a password" };
+
   return (
     <main className="signin">
-      <p className="brand" style={{ marginBottom: 18 }}>
-        <small>TOURNAMENT SCHEDULER</small>ADMIN PORTAL
-      </p>
-      <div className="card">
+      <section className="poster">
+        <Scorebug />
+        <h1>
+          Run the
+          <br />
+          <em>whole</em>
+          <br />
+          season<span>.</span>
+        </h1>
+        <p>Tournaments, people, roles and every switch behind them — managed from one touchline.</p>
+        <svg viewBox="0 0 420 240" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+          <rect className="draw" x="4" y="4" width="412" height="232" rx="3" />
+          <path className="draw" d="M210 4v232" />
+          <circle className="draw" cx="210" cy="120" r="44" />
+          <path className="draw" d="M4 60h64v120H4M416 60h-64v120h64" />
+          <circle className="ball" cx="300" cy="86" r="7" stroke="none" />
+        </svg>
+      </section>
+
+      <div className="gate">
+        <div className="gate-top">
+          <span>
+            Admit <b>one</b>
+          </span>
+          <span>Staff entrance</span>
+        </div>
+
+        <ol className="steps" aria-label="Sign-in steps">
+          {STEPS.map((label, i) => (
+            <li key={label} className={i < stage ? "done" : i === stage ? "now" : undefined} aria-current={i === stage ? "step" : undefined}>
+              {label}
+            </li>
+          ))}
+        </ol>
+
+        <h2>{TITLES[step]}</h2>
         {reason && step === "email" && <div className="notice">{reason}</div>}
         <ErrorBanner message={action.error} />
-        {hint && <p className="hint">{hint}</p>}
+        {hint ? <p className="hint">{hint}</p> : step === "email" && <p className="hint">We'll email you a six-digit code.</p>}
 
         {step === "email" ? (
           <form onSubmit={askForCode}>
             <label htmlFor="email">Email</label>
-            <input id="email" className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input id="email" className="input" type="email" autoComplete="username" placeholder="you@club.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <button className="btn primary" disabled={!email.trim() || !!action.busy}>
-              {action.busy ? "Sending…" : "Send code"}
+              {action.busy ? "Sending…" : "Send code →"}
             </button>
           </form>
         ) : (
           <form onSubmit={submit}>
             <label htmlFor="code">Code from the email</label>
-            <input
-              id="code"
-              className="input"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              disabled={step !== "code"}
-              required
-            />
+            <div className={`otp${step !== "code" ? " disabled" : ""}`}>
+              <input
+                id="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                disabled={step !== "code"}
+                autoFocus={step === "code"}
+                required
+              />
+              <div className="cells" aria-hidden="true">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <span key={i} className={i === Math.min(code.length, 5) ? "cursor" : undefined}>
+                    {code[i] ?? ""}
+                  </span>
+                ))}
+              </div>
+            </div>
             {(step === "password" || step === "newPassword") && (
               <>
                 <label htmlFor="password">{step === "newPassword" ? "Choose a password" : "Password"}</label>
@@ -114,7 +159,7 @@ export default function SignIn() {
               </>
             )}
             <button className="btn primary" disabled={code.length !== 6 || !!action.busy}>
-              {action.busy ? "Checking…" : step === "code" ? "Continue" : "Sign in"}
+              {action.busy ? "Checking…" : step === "code" ? "Continue →" : "Sign in →"}
             </button>
             <button type="button" className="linklike" onClick={restart}>
               Use a different email

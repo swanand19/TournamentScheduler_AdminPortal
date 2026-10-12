@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { getRoles, getUsers, resetUserPassword, setUserBlocked, setUserRole, signUserOut } from "../api/adminApi";
 import { shortDate, useAction, useDebounced, useLoad } from "../hooks";
-import { ErrorBanner, Pager } from "../ui";
+import { Empty, ErrorBanner, Jersey, Loading, Pager } from "../ui";
 
 // People: find them by name or email, filter by role, and act on one — block (signs them out at
 // once), change role, sign out of every device, clear a forgotten portal password. The server
@@ -86,8 +86,8 @@ export default function Users({ can }) {
       <ErrorBanner message={list.error || action.error} />
       {notice && !action.error && <div className="notice">{notice}</div>}
 
-      {list.loading && !data && <p className="empty">Loading…</p>}
-      {data && data.items.length === 0 && <p className="empty">{query ? "Nobody matches that." : "Nobody yet."}</p>}
+      {list.loading && !data && <Loading />}
+      {data && data.items.length === 0 && <Empty>{query ? "Nobody matches that." : "Nobody yet."}</Empty>}
 
       {data && data.items.length > 0 && (
         <div className="table-wrap">
@@ -106,12 +106,17 @@ export default function Users({ can }) {
               {data.items.map((u) => {
                 const busy = action.busy.endsWith(`-${u.userId}`);
                 return (
-                  <tr key={u.userId}>
+                  <tr key={u.userId} className={u.isBlocked ? "blocked" : undefined}>
                     <td>
-                      <strong>{u.name}</strong>
-                      {u.isMe && <span className="badge amber" style={{ marginLeft: 6 }}>You</span>}
-                      {u.isBlocked && <span className="badge red" style={{ marginLeft: 6 }}>Blocked</span>}
-                      <span className="sub">{u.email}</span>
+                      <div className="person">
+                        <Jersey name={u.name} />
+                        <div className="names">
+                          <strong>{u.name}</strong>{" "}
+                          {u.isMe && <span className="badge armband">You</span>}
+                          {u.isBlocked && <span className="badge red card-red">Blocked</span>}
+                          <span className="sub">{u.email}</span>
+                        </div>
+                      </div>
                     </td>
                     <td>
                       {can("ADMIN_USER_SET_ROLE") && roles.data?.length > 0 && !u.isMe ? (
@@ -135,7 +140,14 @@ export default function Users({ can }) {
                     </td>
                     <td>{shortDate(u.memberSince)}</td>
                     <td>{u.lastLoginAt ? shortDate(u.lastLoginAt) : "—"}</td>
-                    <td>{u.activeSessions}</td>
+                    <td>
+                      <span className="devices" title={`${u.activeSessions} signed-in device${u.activeSessions === 1 ? "" : "s"}`}>
+                        {Array.from({ length: Math.min(5, Math.max(u.activeSessions, 1)) }, (_, i) => (
+                          <i key={i} className={i < u.activeSessions ? "on" : undefined} />
+                        ))}
+                        <b>{u.activeSessions}</b>
+                      </span>
+                    </td>
                     <td className="actions">
                       {can("ADMIN_USER_SET_BLOCKED") && !u.isMe && (
                         <button className={`btn small ${u.isBlocked ? "ghost" : "danger"}`} disabled={busy} onClick={() => block(u)}>
