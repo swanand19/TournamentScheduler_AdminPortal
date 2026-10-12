@@ -131,7 +131,7 @@ export default function SignIn() {
               />
               <div className="cells" aria-hidden="true">
                 {Array.from({ length: 6 }, (_, i) => (
-                  <span key={i} className={i === Math.min(code.length, 5) ? "cursor" : undefined}>
+                  <span key={i} className={i === code.length ? "cursor" : code.length === 6 && i === 5 ? "full" : undefined}>
                     {code[i] ?? ""}
                   </span>
                 ))}
