@@ -435,20 +435,24 @@ tr.blocked td:not(.actions) { opacity: 0.6; }
 
 /* ── Sign-in: a poster and a ticket ───────────────────────────────────────────────────────── */
 
-.signin { min-height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 48px; max-width: 1120px; margin: 0 auto; padding: 32px clamp(16px, 4vw, 48px); }
-.poster .scorebug { margin-bottom: 36px; }
-.poster h1 { margin: 0; font-family: var(--display); font-weight: 900; font-size: clamp(56px, 9vw, 120px); line-height: 0.86; letter-spacing: 0.005em; text-transform: uppercase; }
+/* One screen, no scrolling: the page is exactly the window's height, and the poster's headline,
+   gaps and pitch drawing scale with that height (vh) as well as the width, so they always fit
+   beside the ticket. Only a window too short for the ticket itself (under ~560px) scrolls. */
+.signin { height: 100vh; height: 100dvh; min-height: 560px; display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 48px; max-width: 1120px; margin: 0 auto; padding: clamp(16px, 4vh, 32px) clamp(16px, 4vw, 48px); }
+.poster .scorebug { margin-bottom: min(36px, 4vh); }
+.poster h1 { margin: 0; font-family: var(--display); font-weight: 900; font-size: clamp(44px, min(9vw, 12.5vh), 120px); line-height: 0.86; letter-spacing: 0.005em; text-transform: uppercase; }
 .poster h1 em { font-style: normal; color: transparent; -webkit-text-stroke: 2px var(--chalk); }
 .poster h1 span { color: var(--amber); }
-.poster p { margin: 20px 0 0; max-width: 40ch; font-size: 17px; color: var(--chalk-dim); }
-.poster svg { display: block; width: min(420px, 100%); margin-top: 32px; color: var(--chalk); opacity: 0.55; }
-.poster svg .draw { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: chalk 2.4s var(--ease) forwards; }
+.poster p { margin: min(20px, 2.5vh) 0 0; max-width: 40ch; font-size: 17px; color: var(--chalk-dim); }
+.poster svg { display: block; width: auto; height: min(240px, 26vh); max-width: 100%; margin-top: min(32px, 3.5vh); color: var(--chalk); opacity: 0.55; }
+/* pathLength="1" on each line makes 1 its full length, so every line draws completely whatever its size. */
+.poster svg .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: chalk 2.4s var(--ease) forwards; }
 .poster svg .draw:nth-child(2) { animation-delay: 0.3s; }
 .poster svg .draw:nth-child(3) { animation-delay: 0.6s; }
 .poster svg .draw:nth-child(4) { animation-delay: 0.9s; }
 .poster svg .ball { fill: var(--amber); opacity: 0; animation: appear 0.4s 1.6s forwards; }
 
-.gate { position: relative; padding: 28px; border-radius: 16px; background: var(--paper); color: var(--ink); box-shadow: var(--shadow-paper); }
+.gate { position: relative; padding: 28px 28px 20px; border-radius: 16px; background: var(--paper); color: var(--ink); box-shadow: var(--shadow-paper); }
 .gate::before { content: ""; position: absolute; left: 0; right: 0; top: 64px; border-top: 2px dashed var(--line); }
 .gate .gate-top { display: flex; justify-content: space-between; align-items: center; height: 36px; margin: -6px 0 28px; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; }
 .gate .gate-top b { color: var(--ink); }
@@ -480,16 +484,24 @@ tr.blocked td:not(.actions) { opacity: 0.6; }
 .otp:focus-within .cells span.cursor::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 26px; translate: -50% -50%; background: var(--amber); animation: blink 1s steps(2, start) infinite; }
 /* All six in: the last cell keeps the focus ring, without a caret. */
 .otp:focus-within .cells span.full { box-shadow: inset 0 -29px 0 rgba(255, 255, 255, 0.04), inset 0 0 0 2px var(--amber); }
-.otp.disabled .cells span { background: var(--pitch-700); color: var(--chalk); }
+/* After the code step: the accepted code as one line, so the password fields fit on screen. */
+.code-ok { display: flex; align-items: center; gap: 12px; height: 44px; margin-bottom: 16px; padding: 0 14px; border-radius: 8px; background: var(--ink); color: var(--chalk-dim); font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.code-ok b { font-family: var(--display); font-weight: 900; font-size: 22px; letter-spacing: 0.3em; color: var(--amber); }
+.code-ok .ok { margin-left: auto; color: var(--success-tint); letter-spacing: 0.12em; }
 
 .signin .error, .signin .notice { margin-bottom: 16px; }
 
 @media (max-width: 880px) {
-  .signin { grid-template-columns: 1fr; gap: 28px; align-content: start; }
+  /* Stacked on a phone: the headline shrinks to make room for the ticket. */
+  .signin { grid-template-columns: 1fr; gap: min(24px, 3vh); align-content: start; }
   .poster svg, .poster p { display: none; }
-  .poster .scorebug { margin-bottom: 20px; }
-  .poster h1 { font-size: clamp(48px, 15vw, 80px); }
+  .poster .scorebug { margin-bottom: min(16px, 2vh); }
+  .poster h1 { font-size: clamp(36px, min(12vw, 7vh), 72px); }
+  /* Past the email step the ticket grows, so the headline steps aside and the badge stays. */
+  .signin.past-email .poster h1 { display: none; }
 }
+/* Too short to keep the drawing as well as the headline: drop the drawing first. */
+@media (max-height: 600px) { .poster svg { display: none; } }
 
 /* ── Motion ───────────────────────────────────────────────────────────────────────────────── */
 
