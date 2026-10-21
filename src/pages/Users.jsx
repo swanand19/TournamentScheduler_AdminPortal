@@ -3,7 +3,7 @@ import { getRoles, getUsers, resetUserPassword, setUserBlocked, setUserRole, sig
 import { shortDate, useAction, useDebounced, useLoad } from "../hooks";
 import { Empty, ErrorBanner, Jersey, Loading, Pager } from "../ui";
 
-// People: find them by name or email, filter by role, and act on one — block (signs them out at
+// People: find them by name, email or mobile number, filter by role, and act on one — block (signs them out at
 // once), change role, sign out of every device, clear a forgotten portal password. The server
 // refuses changing your own role or blocking yourself; the buttons follow.
 
@@ -55,8 +55,8 @@ export default function Users({ can }) {
         <input
           className="input grow"
           type="search"
-          placeholder="Search by name or email"
-          aria-label="Search people by name or email"
+          placeholder="Search by name, email or number"
+          aria-label="Search people by name, email or mobile number"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -114,7 +114,7 @@ export default function Users({ can }) {
                           <strong>{u.name}</strong>{" "}
                           {u.isMe && <span className="badge armband">You</span>}
                           {u.isBlocked && <span className="badge red card-red">Blocked</span>}
-                          <span className="sub">{u.email}</span>
+                          <span className="sub">{[u.email, u.phone].filter(Boolean).join(" · ")}</span>
                         </div>
                       </div>
                     </td>

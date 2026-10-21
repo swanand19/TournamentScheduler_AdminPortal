@@ -35,4 +35,9 @@ export const SERVICES = [
   "ADMIN_PERMISSION_LIST",
   "ADMIN_PERMISSION_SYNC",
   "ADMIN_PERMISSION_SET_DISABLED", // permissionId
+
+  // Message templates (phase 6D)
+  "ADMIN_TEMPLATE_LIST",
+  "ADMIN_TEMPLATE_SAVE", // code
+  "ADMIN_TEMPLATE_RESET", // code
 ];

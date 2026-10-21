@@ -422,6 +422,36 @@ tr.blocked td:not(.actions) { opacity: 0.6; }
 .switch[aria-checked="true"] .track::after { translate: 20px 0; }
 .switch .label { min-width: 26px; text-align: left; }
 
+/* A channel switch: off isn't an error, so off is grey, not red. */
+.switch.neutral .track { background: #b9b19b; }
+.switch.neutral[aria-checked="true"] .track { background: var(--success); }
+.switch:disabled { cursor: default; opacity: 0.75; }
+
+/* ── Messages: the template editor ─────────────────────────────────────────────────────────── */
+
+.template-group + .template-group { margin-top: 14px; }
+.template-group h3 { margin: 0 0 6px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--amber); }
+.template-meta { margin: -6px 0 14px; font-size: 13px; color: var(--muted); }
+.template-meta code { font-size: 12px; background: var(--paper-2); padding: 1px 6px; border-radius: 4px; }
+.template-hint { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+.template-fields { display: grid; gap: 12px; margin-top: 8px; }
+.field { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.field .input { width: 100%; font: inherit; font-weight: 500; color: var(--ink); }
+.field textarea.input { resize: vertical; min-height: 64px; line-height: 1.45; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 10px; border-radius: 8px;
+  border: 1.5px solid var(--line); background: #fffdf7; color: var(--ink); font-family: var(--mono); font-size: 12.5px; font-weight: 700; text-align: left; cursor: pointer;
+}
+.chip:hover:not(:disabled) { border-color: var(--ink); }
+.chip:disabled { cursor: default; }
+.chip .req { color: var(--amber-deep); font-family: var(--body); font-size: 11px; }
+.chip .sub { font-family: var(--body); font-weight: 500; font-size: 11.5px; color: var(--muted); }
+.preview { position: relative; padding: 14px 16px 12px; border-radius: 10px; background: var(--paper-2); border: 1px dashed var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
+.preview strong { display: block; margin-bottom: 4px; }
+.preview p { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.5; }
+.preview-label { position: absolute; top: -9px; left: 12px; padding: 0 6px; background: var(--paper); font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+
 .tallies { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
 .tally-tile { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--line); background: #fffdf7; color: var(--ink); text-align: left; }
 .tally-tile b { font-family: var(--display); font-weight: 900; font-size: 36px; line-height: 0.9; font-variant-numeric: tabular-nums; }

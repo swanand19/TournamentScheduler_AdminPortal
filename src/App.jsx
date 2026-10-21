@@ -3,6 +3,7 @@ import { getMe, signOut } from "./api/adminApi";
 import { clearSession } from "./auth/session";
 import Permissions from "./pages/Permissions";
 import Roles from "./pages/Roles";
+import Templates from "./pages/Templates";
 import Tournaments from "./pages/Tournaments";
 import Users from "./pages/Users";
 import { useLoad } from "./hooks";
@@ -17,6 +18,7 @@ const PAGES = [
   { key: "people", label: "People", kicker: "The squad", lead: "Find anyone, change their role, or show them the red card.", service: "ADMIN_USER_LIST", Page: Users },
   { key: "roles", label: "Roles", kicker: "Team sheet", lead: "What each role may do — every service, ticked or not.", service: "ADMIN_ROLE_LIST", Page: Roles },
   { key: "permissions", label: "Permissions", kicker: "Floodlights", lead: "Every service the API has. Switch one off and it's off for everyone.", service: "ADMIN_PERMISSION_LIST", Page: Permissions },
+  { key: "templates", label: "Messages", kicker: "Tannoy", lead: "What every email, text and notification says. Change the words; the placeholders fill themselves in.", service: "ADMIN_TEMPLATE_LIST", Page: Templates },
 ];
 
 const PAGE_KEY = "tournamentScheduler.admin.page";

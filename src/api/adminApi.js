@@ -41,3 +41,9 @@ export const getPermissions = () => api.call("ADMIN_PERMISSION_LIST");
 export const syncPermissions = () => api.call("ADMIN_PERMISSION_SYNC", { body: {} });
 export const setPermissionDisabled = (permissionId, disabled) =>
   api.call("ADMIN_PERMISSION_SET_DISABLED", { routeParams: { permissionId }, body: { disabled } });
+
+/** Every message's wording: [{ code, name, group, description, channels, placeholders, isCustomised, isEmail, emailSubject, … }] */
+export const getTemplates = () => api.call("ADMIN_TEMPLATE_LIST");
+/** Saves the whole template; answers it as saved (or the rule it breaks). */
+export const saveTemplate = (code, template) => api.call("ADMIN_TEMPLATE_SAVE", { routeParams: { code }, body: template });
+export const resetTemplate = (code) => api.call("ADMIN_TEMPLATE_RESET", { routeParams: { code }, body: {} });
