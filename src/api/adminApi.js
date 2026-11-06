@@ -47,3 +47,11 @@ export const getTemplates = () => api.call("ADMIN_TEMPLATE_LIST");
 /** Saves the whole template; answers it as saved (or the rule it breaks). */
 export const saveTemplate = (code, template) => api.call("ADMIN_TEMPLATE_SAVE", { routeParams: { code }, body: template });
 export const resetTemplate = (code) => api.call("ADMIN_TEMPLATE_RESET", { routeParams: { code }, body: {} });
+
+/** Phone-app releases on every platform: { items, platforms, inUse, activeDays, defaultStoreUrls } (HLD P-25). */
+export const getAppVersions = () => api.call("ADMIN_APP_VERSION_LIST");
+/** Each change answers with the whole list again: one release's force switch moves the others. */
+export const createAppVersion = (release) => api.call("ADMIN_APP_VERSION_CREATE", { body: release });
+export const updateAppVersion = (appStartId, release) => api.call("ADMIN_APP_VERSION_UPDATE", { routeParams: { appStartId }, body: release });
+export const setAppVersionDisabled = (appStartId, disabled) =>
+  api.call("ADMIN_APP_VERSION_SET_DISABLED", { routeParams: { appStartId }, body: { disabled } });

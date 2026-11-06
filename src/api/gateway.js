@@ -83,7 +83,8 @@ export function sealRequest(serviceRequestId, payload) {
   const { token, contentKey } = encryptRequest({
     serverPublicKey: key,
     keyId,
-    claims: { serviceRequestId, requestUUID, timestamp },
+    // The channel and version are sealed too: the server's update check reads them (HLD P-25).
+    claims: { serviceRequestId, requestUUID, timestamp, channel: "PORTAL", appVersion: __APP_VERSION__ },
     plaintext: utf8ToBytes(JSON.stringify(session ? { ...payload, session: session.token } : payload)),
     randomBytes,
   });
