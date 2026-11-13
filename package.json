@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:azure": "vite build --mode azure",
     "lint": "eslint .",
     "preview": "vite preview",
     "verify:gateway": "node scripts/verify-gateway-vectors.mjs"
