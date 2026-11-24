@@ -20,6 +20,8 @@ export const getTournaments = ({ view, search, page, pageSize }) =>
   api.call("ADMIN_TOURNAMENT_LIST", { query: { view, search: search || undefined, page, pageSize } });
 export const reopenTournament = (id, endDate) =>
   api.call("ADMIN_TOURNAMENT_REOPEN", { routeParams: { id }, body: { endDate: endDate || null } });
+/** Every tournament is public; hiding one shuts its link, search and followers out (its own people still see it). */
+export const setTournamentHidden = (id, hidden) => api.call("ADMIN_TOURNAMENT_HIDE", { routeParams: { id }, body: { hidden } });
 
 export const getUsers = ({ search, roleId, page, pageSize }) =>
   api.call("ADMIN_USER_LIST", { query: { search: search || undefined, roleId: roleId || undefined, page, pageSize } });

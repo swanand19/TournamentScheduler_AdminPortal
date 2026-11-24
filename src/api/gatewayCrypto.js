@@ -109,35 +109,65 @@ function newEphemeralSecret(randomBytes) {
 // Request (the page's side of ECDH-ES)
 // ---------------------------------------------------------------------------
 
+// The server's key never changes while the app runs, so its point is parsed once and given a small
+// multiplication table (window 4: built in about the time of two and a half agreements, and each
+// agreement after that takes under a third of the time). The agreed key is the same either way.
+let prepared = null;
+
+function serverPoint(serverPublicKey) {
+  const same = prepared !== null && prepared.bytes.length === serverPublicKey.length && prepared.bytes.every((b, i) => b === serverPublicKey[i]);
+  if (!prepared || !same) {
+    const point = p256.Point.fromBytes(serverPublicKey); // checks it is on the curve
+    if (point.is0()) throw new GatewayCryptoError("Not a server key.");
+    prepared = { bytes: serverPublicKey.slice(), point: point.precompute(4, false) };
+  }
+  return prepared.point;
+}
+
+/**
+ * The slow half of sealing a request: a new throwaway key pair and its agreement with the server's
+ * key. Separate from encryptRequest so an app can do it ahead of time, while nothing is happening,
+ * and seal the request itself in an instant.
+ *
+ * @param {{ serverPublicKey: Uint8Array, randomBytes: (n: number) => Uint8Array, ephemeralSecretKey?: Uint8Array }} args
+ *   ephemeralSecretKey is only fixed by the shared test vectors.
+ * @returns {{ epk: { x: string, y: string }, contentKey: Uint8Array }}
+ */
+export function agreeKey(args) {
+  const secret = args.ephemeralSecretKey ?? newEphemeralSecret(args.randomBytes);
+  const ephemeralPublic = p256.getPublicKey(secret, false); // 0x04 || X || Y
+
+  // The shared secret is the x-coordinate of the agreed point.
+  const shared = serverPoint(args.serverPublicKey).multiply(p256.Point.Fn.fromBytes(secret)).toBytes(true).slice(1);
+  const contentKey = concatKdf(shared, ENC, new Uint8Array(0), new Uint8Array(0));
+  shared.fill(0);
+  if (!args.ephemeralSecretKey) secret.fill(0);
+
+  return {
+    epk: { x: base64UrlEncode(ephemeralPublic.slice(1, 33)), y: base64UrlEncode(ephemeralPublic.slice(33, 65)) },
+    contentKey,
+  };
+}
+
 /**
  * @param {{ serverPublicKey: Uint8Array, keyId: string, claims: Record<string, string>,
  *           plaintext: Uint8Array, randomBytes: (n: number) => Uint8Array,
+ *           agreed?: { epk: { x: string, y: string }, contentKey: Uint8Array },
  *           ephemeralSecretKey?: Uint8Array, iv?: Uint8Array }} args
+ *   agreed is an agreement made ahead of time with agreeKey, for this request alone;
  *   ephemeralSecretKey and iv are only fixed by the shared test vectors.
  * @returns {{ token: string, contentKey: Uint8Array }}
  */
 export function encryptRequest(args) {
-  const secret = args.ephemeralSecretKey ?? newEphemeralSecret(args.randomBytes);
-  const ephemeralPublic = p256.getPublicKey(secret, false); // 0x04 || X || Y
+  const { epk, contentKey } = args.agreed ?? agreeKey(args);
 
   const header = {
     alg: "ECDH-ES",
     enc: ENC,
     kid: args.keyId,
-    epk: {
-      kty: "EC",
-      crv: "P-256",
-      x: base64UrlEncode(ephemeralPublic.slice(1, 33)),
-      y: base64UrlEncode(ephemeralPublic.slice(33, 65)),
-    },
+    epk: { kty: "EC", crv: "P-256", x: epk.x, y: epk.y },
     ...args.claims,
   };
-
-  // The shared secret is the x-coordinate of the agreed point.
-  const shared = p256.getSharedSecret(secret, args.serverPublicKey, true).slice(1);
-  const contentKey = concatKdf(shared, ENC, new Uint8Array(0), new Uint8Array(0));
-  shared.fill(0);
-  if (!args.ephemeralSecretKey) secret.fill(0);
 
   return { token: seal(header, contentKey, args.plaintext, args.iv ?? args.randomBytes(IV_BYTES)), contentKey };
 }

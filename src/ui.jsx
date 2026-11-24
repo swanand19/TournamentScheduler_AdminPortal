@@ -118,7 +118,7 @@ export function Scorebug() {
       <span className="mark">TS</span>
       <span className="title">
         ADMIN PORTAL
-        <small>TOURNAMENT SCHEDULER</small>
+        <small>KICKCRICKET</small>
       </span>
       <Clock />
     </div>

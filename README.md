@@ -1,4 +1,4 @@
-# Tournament Scheduler — admin portal
+# KickCricket — admin portal
 
 Phase 5 of `docs/accounts-and-access-plan.md`. Admins (and any role ticked for portal services)
 manage every tournament, people, roles and permissions here. Details: `TournamentScheduler.Api/Auth/README.md`

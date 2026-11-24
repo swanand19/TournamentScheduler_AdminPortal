@@ -15,6 +15,7 @@ export const SERVICES = [
   // Every tournament, paged — query: view ("Live" | "Upcoming" | "Past"), search, page, pageSize
   "ADMIN_TOURNAMENT_LIST",
   "ADMIN_TOURNAMENT_REOPEN", // id
+  "ADMIN_TOURNAMENT_HIDE", // id; { hidden } — every tournament is public; this takes one down
 
   // People — query: search, roleId, page, pageSize
   "ADMIN_USER_LIST",

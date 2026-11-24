@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { getTournaments, reopenTournament } from "../api/adminApi";
+import { getTournaments, reopenTournament, setTournamentHidden } from "../api/adminApi";
 import { day, shortDate, useAction, useDebounced, useLoad } from "../hooks";
 import { Empty, ErrorBanner, Loading, Pager } from "../ui";
 
 // Every tournament, in three server-paged lists: Live, Upcoming, Past (completed and cancelled).
-// The portal doesn't go inside tournaments; it shows who runs each one, and reopens one that was
-// closed by mistake (a new end date is needed when the old one has passed).
+// The portal doesn't go inside tournaments; it shows who runs each one, reopens one that was
+// closed by mistake (a new end date is needed when the old one has passed), and hides one from the
+// public — every tournament is public otherwise (2026-11-23), so this is the takedown for a complaint.
 
 const VIEWS = [
   { key: "Live", label: "Live" },
@@ -28,6 +29,7 @@ export default function Tournaments({ can }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [reopening, setReopening] = useState(null); // { id, name, endDate }
+  const [hiding, setHiding] = useState(null); // { id, name }
   const query = useDebounced(search);
   const list = useLoad(() => getTournaments({ view, search: query, page, pageSize: PAGE_SIZE }), [view, query, page]);
   const action = useAction();
@@ -45,6 +47,14 @@ export default function Tournaments({ can }) {
       list.reload();
     });
   };
+
+  // Hiding is asked first (followers lose it at once); showing it again isn't.
+  const setHidden = (id, hidden) =>
+    action.run(`hide-${id}`, async () => {
+      await setTournamentHidden(id, hidden);
+      setHiding(null);
+      list.reload();
+    });
 
   const data = list.data;
   return (
@@ -96,6 +106,22 @@ export default function Tournaments({ can }) {
         </form>
       )}
 
+      {hiding && (
+        <div className="review" role="group" aria-label="Hide from the public">
+          <span className="tag">HIDE</span>
+          <span>
+            Hide <strong>{hiding.name}</strong> from the public? Its link, its public pages and search stop working, and its
+            followers lose it. The people in it still see it. You can show it again later; the link stays the same.
+          </span>
+          <button className="btn primary small" disabled={!!action.busy} onClick={() => setHidden(hiding.id, true)}>
+            {action.busy ? "Hiding…" : "Hide"}
+          </button>
+          <button type="button" className="btn ghost small" onClick={() => setHiding(null)}>
+            Cancel
+          </button>
+        </div>
+      )}
+
       {list.loading && !data && <Loading />}
       {data && data.items.length === 0 && <Empty>{query ? "No tournaments match that name." : `No ${view.toLowerCase()} tournaments.`}</Empty>}
 
@@ -130,6 +156,7 @@ export default function Tournaments({ can }) {
                       by <strong style={{ color: "var(--ink)" }}>{t.creator.name}</strong>
                       {t.creatorEmail && ` · ${t.creatorEmail}`}
                     </span>
+                    {t.hidden && <strong style={{ color: "var(--danger-ink)" }}>Hidden from the public</strong>}
                   </div>
                 </div>
                 <div className="stats">
@@ -152,6 +179,16 @@ export default function Tournaments({ can }) {
                       Reopen…
                     </button>
                   )}
+                  {can("ADMIN_TOURNAMENT_HIDE") &&
+                    (t.hidden ? (
+                      <button className="btn ghost small" disabled={!!action.busy} onClick={() => setHidden(t.id, false)}>
+                        Show to the public
+                      </button>
+                    ) : (
+                      <button className="btn ghost small" onClick={() => setHiding({ id: t.id, name: t.name })}>
+                        Hide from the public…
+                      </button>
+                    ))}
                 </div>
               </article>
             );

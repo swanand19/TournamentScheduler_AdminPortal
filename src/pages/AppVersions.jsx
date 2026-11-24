@@ -516,7 +516,7 @@ function ReleaseDrawer({ editing, data, onClose, onSaved }) {
                 {form.storeUrl.trim() || defaultStore ? (
                   <span className="fake-btn">Update from {STORE[form.platform]}</span>
                 ) : (
-                  <span className="fake-link">Open {STORE[form.platform]} and update Tournament Scheduler.</span>
+                  <span className="fake-link">Open {STORE[form.platform]} and update KickCricket.</span>
                 )}
               </div>
             ) : (
