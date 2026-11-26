@@ -6,9 +6,14 @@ import { ErrorBanner, Loading } from "../ui";
 // The wording of every message the system sends (phase 6D): sign-in and other codes, invites, and
 // the notifications. Each channel has its switch and its texts; {{Placeholders}} are filled in when
 // a message goes out (click one to put it where the cursor is). The server checks every save —
-// codes can't lose {{Code}}, codes and invites can't stop going by email or text — and says why.
+// codes can't lose {{Code}}, codes and invites can't stop going by email or to the number — and says why.
+//
+// Codes and invites to a mobile number (2026-11-26): "Mobile number" holds the approved WhatsApp
+// template the message goes out as (its wording lives at Meta; here only its name, language and which
+// values fill {{1}}, {{2}}, …) and, folded away, the words the log writes when a server's numbers are
+// for testing. The server says which of the two this server uses.
 
-const FIELDS = ["isEmail", "emailSubject", "emailBody", "isSms", "smsBody", "smsDltTemplateId", "isNotification", "notificationTitle", "notificationBody", "isPush", "pushTitle", "pushBody"];
+const FIELDS = ["isEmail", "emailSubject", "emailBody", "isSms", "smsBody", "smsDltTemplateId", "whatsAppTemplateName", "whatsAppLanguage", "isNotification", "notificationTitle", "notificationBody", "isPush", "pushTitle", "pushBody"];
 
 const CHANNELS = [
   {
@@ -31,7 +36,7 @@ const CHANNELS = [
   },
   {
     key: "Sms",
-    label: "Text message",
+    label: "Mobile number",
     on: "isSms",
     texts: [
       { field: "smsBody", label: "Text", rows: 3 },
@@ -49,7 +54,13 @@ const CHANNELS = [
   },
 ];
 
-const pick = (t) => Object.fromEntries(FIELDS.map((f) => [f, t[f] ?? (f.startsWith("is") ? false : "")]));
+const pick = (t) => ({
+  ...Object.fromEntries(FIELDS.map((f) => [f, t[f] ?? (f.startsWith("is") ? false : "")])),
+  whatsAppParameters: [...(t.whatsAppParameters ?? [])],
+});
+
+const sameDraft = (a, b) =>
+  FIELDS.every((f) => (a[f] ?? "") === (b[f] ?? "")) && a.whatsAppParameters.join(",") === b.whatsAppParameters.join(",");
 
 /** Fills placeholders with the samples, for the preview. */
 const fill = (text, placeholders) =>
@@ -107,7 +118,8 @@ export default function Templates({ can }) {
 }
 
 function channelsOn(t) {
-  const on = CHANNELS.filter((c) => t[c.on] && t.channels.find((x) => x.channel === c.key)?.supported).map((c) => c.label);
+  const on = CHANNELS.filter((c) => c.key !== "Sms" && t[c.on] && t.channels.find((x) => x.channel === c.key)?.supported).map((c) => c.label);
+  if (t.channels.find((x) => x.channel === "WhatsApp")?.supported) on.push(t.whatsAppTemplateName ? "WhatsApp" : "No WhatsApp template");
   return on.length ? on.join(" · ") : "Switched off";
 }
 
@@ -117,8 +129,7 @@ function TemplateEditor({ template, editable, canReset, onSaved }) {
   const focused = useRef({ field: null, el: null });
   const action = useAction();
 
-  const saved = pick(template);
-  const changed = FIELDS.some((f) => (draft[f] ?? "") !== (saved[f] ?? ""));
+  const changed = !sameDraft(draft, pick(template));
   const channels = CHANNELS.map((c) => ({ ...c, info: template.channels.find((x) => x.channel === c.key) })).filter((c) => c.info?.supported);
 
   const set = (field, value) => {
@@ -195,6 +206,8 @@ function TemplateEditor({ template, editable, canReset, onSaved }) {
       </section>
 
       {channels.map((c) => {
+        if (c.key === "Sms")
+          return <MobileNumber key={c.key} template={template} sms={c} draft={draft} set={set} editable={editable} focusedRef={focused} />;
         const on = !!draft[c.on];
         return (
           <section className="group" key={c.key}>
@@ -271,6 +284,150 @@ function TemplateEditor({ template, editable, canReset, onSaved }) {
 }
 
 const onlyPlain = (c) => c.texts.every((t) => t.plain);
+
+/**
+ * Codes and invites to a mobile number: the WhatsApp template they go out as, and the words the log
+ * writes instead when this server's numbers are for testing (folded away unless that's what it uses).
+ */
+function MobileNumber({ template, sms, draft, set, editable, focusedRef }) {
+  const whatsApp = template.channels.find((x) => x.channel === "WhatsApp");
+  const fixedValues = !!whatsApp?.locked; // a code: the template takes just the code
+  const way = whatsApp?.inUseHere ? "get WhatsApp messages" : sms.info.inUseHere ? "go to the log (testing)" : "are switched off";
+  const plain = { onFocus: () => (focusedRef.current = { field: null, el: null }) };
+
+  return (
+    <section className="group">
+      <h3>Mobile number</h3>
+      <p className="template-hint">Goes to the mobile number when that's what the person gave. On this server, numbers {way}.</p>
+
+      {whatsApp?.supported && (
+        <div className="number-way">
+          <div className="number-way-head">
+            <strong>WhatsApp</strong>
+            <span className={`badge${whatsApp.inUseHere ? " green" : ""}`}>{whatsApp.inUseHere ? "In use on this server" : "Not used on this server"}</span>
+          </div>
+          {whatsApp.note && <p className="template-hint">{whatsApp.locked ? "🔒 " : ""}{whatsApp.note}</p>}
+          <div className="wa-grid">
+            <label className="field">
+              <span>Template name</span>
+              <input
+                className="input mono"
+                value={draft.whatsAppTemplateName}
+                placeholder={fixedValues ? "otp_template_kickcricket" : "e.g. tournament_invite — empty: not sent on WhatsApp"}
+                spellCheck={false}
+                autoCapitalize="none"
+                disabled={!editable}
+                {...plain}
+                onChange={(e) => set("whatsAppTemplateName", e.target.value)}
+              />
+              <span className="template-hint">Exactly as approved in WhatsApp Manager. Its wording lives at Meta.</span>
+            </label>
+            <label className="field">
+              <span>Language</span>
+              <input
+                className="input mono"
+                value={draft.whatsAppLanguage}
+                placeholder="en"
+                spellCheck={false}
+                autoCapitalize="none"
+                disabled={!editable}
+                {...plain}
+                onChange={(e) => set("whatsAppLanguage", e.target.value)}
+              />
+              <span className="template-hint">en isn't en_US.</span>
+            </label>
+          </div>
+          {fixedValues ? (
+            <p className="template-hint">
+              The code fills <code>{"{{1}}"}</code> and the template's Copy code button.
+            </p>
+          ) : (
+            <WhatsAppValues values={draft.whatsAppParameters} placeholders={template.placeholders} editable={editable} onChange={(v) => set("whatsAppParameters", v)} />
+          )}
+        </div>
+      )}
+
+      <details className="number-way" open={!!sms.info.inUseHere}>
+        <summary>
+          <strong>Text wording</strong>
+          <span className={`badge${sms.info.inUseHere ? " green" : ""}`}>{sms.info.inUseHere ? "In use on this server" : "Testing only"}</span>
+        </summary>
+        {sms.info.note && <p className="template-hint">{sms.info.note}</p>}
+        <div className="template-fields">
+          {sms.texts.map((t) =>
+            t.rows ? (
+              <label key={t.field} className="field">
+                <span>{t.label}</span>
+                <textarea
+                  className="input"
+                  rows={t.rows}
+                  value={draft[t.field] ?? ""}
+                  disabled={!editable}
+                  onFocus={(e) => (focusedRef.current = { field: t.field, el: e.target })}
+                  onChange={(e) => set(t.field, e.target.value)}
+                />
+              </label>
+            ) : (
+              <label key={t.field} className="field">
+                <span>{t.label}</span>
+                <input className="input" value={draft[t.field] ?? ""} disabled={!editable} {...plain} onChange={(e) => set(t.field, e.target.value)} />
+                {t.hint && <span className="template-hint">{t.hint}</span>}
+              </label>
+            )
+          )}
+          <Preview channel={sms} draft={draft} placeholders={template.placeholders} />
+        </div>
+      </details>
+    </section>
+  );
+}
+
+/** Which of the message's values fill the WhatsApp template's {{1}}, {{2}}, …, in order. */
+function WhatsAppValues({ values, placeholders, editable, onChange }) {
+  const sample = (name) => placeholders.find((p) => p.name === name)?.sample ?? name;
+  const add = () => onChange([...values, placeholders.find((p) => !values.includes(p.name))?.name ?? placeholders[0].name]);
+
+  return (
+    <div className="wa-values">
+      <span className="template-hint">
+        Fill the template's variables, in the order they appear in it. Each must match what the approved template expects.
+      </span>
+      {values.length === 0 && <span className="template-hint">No values: the template has no variables.</span>}
+      {values.map((v, i) => (
+        <div className="wa-value" key={i}>
+          <code>{`{{${i + 1}}}`}</code>
+          <select
+            className="input"
+            value={v}
+            disabled={!editable}
+            aria-label={`Value for {{${i + 1}}}`}
+            onChange={(e) => onChange(values.map((x, j) => (j === i ? e.target.value : x)))}
+          >
+            {placeholders.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name} — {p.description}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn ghost small" disabled={!editable} onClick={() => onChange(values.filter((_, j) => j !== i))}>
+            Remove
+          </button>
+        </div>
+      ))}
+      {editable && (
+        <button type="button" className="btn ghost small wa-add" onClick={add}>
+          + Add a value
+        </button>
+      )}
+      {values.length > 0 && (
+        <div className="preview">
+          <span className="preview-label">Sample</span>
+          <p>{values.map((v, i) => `{{${i + 1}}} ${sample(v)}`).join("  ·  ")}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** The message as someone would get it, with sample values. */
 function Preview({ channel, draft, placeholders }) {
